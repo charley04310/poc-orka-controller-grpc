@@ -24,3 +24,17 @@ $ unzip protoc-3.15.8-linux-x86_64.zip -d $HOME/.local
 ```
 $ export PATH="$PATH:$HOME/.local/bin"
 ```
+
+## Usage
+
+### Run the server and client GRPC
+
+1. Run the server GRPC :
+```
+cargo run --bin server
+```
+
+2. Run the client GRPC :
+```
+cargo run --bin client
+```
