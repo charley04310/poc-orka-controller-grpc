@@ -501,6 +501,7 @@ dependencies = [
  "axum",
  "prost",
  "tokio",
+ "tokio-stream",
  "tonic",
  "tonic-build",
 ]
