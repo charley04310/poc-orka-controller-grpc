@@ -1,5 +1,7 @@
 mod client;
 
+use log::info;
+
 use crate::client::scheduler;
 use crate::client::Client;
 
@@ -14,22 +16,21 @@ use std::net::SocketAddr;
 use tokio::task;
 
 #[derive(Debug, Default)]
-pub struct MySchedulingService {}
+pub struct SchedulerService {}
 
 #[tonic::async_trait]
-impl SchedulingService for MySchedulingService {
+impl SchedulingService for SchedulerService {
     type ScheduleStream = ReceiverStream<Result<WorkloadStatus, Status>>;
 
     async fn schedule(
         &self,
         request: Request<SchedulingRequest>,
     ) -> Result<Response<Self::ScheduleStream>, Status> {
-        println!("Got a request: {:?}", request);
+        info!("Got a request: {:?}", request);
 
         let (sender, receiver) = mpsc::channel(4);
 
         tokio::spawn(async move {
-
             let fake_statuses_response = vec![
                 WorkloadStatus {
                     name: "Workload 1".to_string(),
@@ -69,7 +70,7 @@ impl SchedulingService for MySchedulingService {
                 .await
                 .expect("Failed to send status to stream");
 
-            println!("Finished sending statuses");
+            info!("Finished sending statuses");
         });
 
         let stream_of_workload_status = ReceiverStream::new(receiver);
@@ -80,13 +81,15 @@ impl SchedulingService for MySchedulingService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // GRPC
+    // // Initialize logger
+    pretty_env_logger::init();
+
+    // Initialize gRPC server
     let grpc_addr = "[::1]:50051".parse()?;
-    let scheduler = MySchedulingService::default();
+    let scheduler = SchedulerService::default();
 
     // Spawn the gRPC server as a tokio task
     let grpc_thread = task::spawn(async move {
-        println!("Running grpc here: {}", grpc_addr);
         Server::builder()
             .add_service(SchedulingServiceServer::new(scheduler))
             .serve(grpc_addr)
@@ -94,18 +97,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap();
     });
 
-    // HTTP
+    // Initialize HTTP server
     let http_addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let app = Router::new().route("/workload", get(handler_workload));
 
     // Spawn the HTTP server as a tokio task
     let http_thread = task::spawn(async move {
-        println!("Running http here: {}", http_addr);
         axum::Server::bind(&http_addr)
             .serve(app.into_make_service())
             .await
             .unwrap();
     });
+
+    info!("Running http here: {}", http_addr);
+    info!("Running grpc here: {}", grpc_addr);
 
     // Wait for both servers to finish
     tokio::try_join!(grpc_thread, http_thread)?;

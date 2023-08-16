@@ -1,3 +1,4 @@
+use log::trace;
 use scheduler::scheduling_service_client::SchedulingServiceClient;
 use scheduler::SchedulingRequest;
 use tonic::transport::Channel;
@@ -27,7 +28,7 @@ impl Client {
         let mut stream = response.into_inner();
 
         while let Some(status) = stream.message().await? {
-            println!("STATUS={:?}", status);
+            trace!("STATUS={:?}", status);
         }
         Ok(())
     }
